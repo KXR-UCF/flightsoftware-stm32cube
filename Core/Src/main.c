@@ -141,25 +141,25 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan1) {
 
 		switch((RxData[0] << 8 )| RxData[1]){
 			// Set servo angle
-			case 0xAAAA:
+			case 0xAA:
 				packet = RxData[2] << 8 | RxData[3];
 				set_servo_angle(packet & 0b11, packet >> 2);
 				break;
 			// Enable/Disable servo power
-			case 0xB00B:
+			case 0xB0:
 				packet = RxData[3];
 				enable_servo(packet & 0b11, (packet >> 2) != 0);
 				break;
 			// Power/Off Solenoid
-			case 0xEBDB:
+			case 0xEB:
 				enable_solinoid(RxData[2], RxData[3] != 0);
 				break;
 			// Request Data
-			case 0xDA7A:
+			case 0xDA:
 				enable_data = RxData[3] != 0;
 				break;
 			// PCB^2 Error Signal
-			case 0xDEAD:
+			case 0xDE:
 		}
 
 
@@ -332,6 +332,8 @@ int main(void)
   /* USER CODE END 2 */
 
   /* Infinite loop */
+  while (!enable_data)
+    HAL_Delay(500);
   /* USER CODE BEGIN WHILE */
   while (1)
   {

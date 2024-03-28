@@ -28,7 +28,7 @@ int8_t ad7124_noCheckReadRegister(struct ad7124_dev *dev, struct ad7124_register
     HAL_GPIO_WritePin(dev->ncs_GPIOx, dev->ncs_GPIO_pin, GPIO_PIN_SET);
 
     if (flag)
-        return flag;
+        Error_Handler();
 
     // Check the CRC
     if (dev->useCRC == AD7124_USE_CRC)
@@ -40,7 +40,7 @@ int8_t ad7124_noCheckReadRegister(struct ad7124_dev *dev, struct ad7124_register
     }
 
     if (flag)
-        return flag;
+        Error_Handler();
 
     /*
      * if reading Data with 4 bytes, need to copy the flag byte to the flag
@@ -103,7 +103,7 @@ int8_t ad7124_readRegister(struct ad7124_dev *dev, struct ad7124_registerData *p
         flag = ad7124_waitForSpiReady(dev,
                                       dev->responseTimeout);
         if (flag)
-            return flag;
+            Error_Handler();
     }
 
     return ad7124_noCheckReadRegister(dev, p_reg);
@@ -115,7 +115,7 @@ int8_t ad7124_readRegister2(struct ad7124_dev *dev, uint32_t reg, uint32_t *read
 
     flag = ad7124_readRegister(dev, &dev->regs[reg]);
     if (flag)
-        return flag;
+        Error_Handler();
 
     *readval = dev->regs[reg].value;
 
@@ -132,7 +132,7 @@ int8_t ad7124_writeRegister(struct ad7124_dev *dev,
         flag = ad7124_waitForSpiReady(dev,
                                          dev->responseTimeout);
         if (flag)
-            return flag;
+            Error_Handler();
     }
 
     return ad7124_noCheckWriteRegister(dev,
@@ -158,7 +158,7 @@ int8_t ad7124_reset(struct ad7124_dev *dev)
     HAL_GPIO_WritePin(dev->ncs_GPIOx, dev->ncs_GPIO_pin, GPIO_PIN_SET);
 
     if (flag)
-        return flag;
+        Error_Handler();
 
     /* CRC is disabled after reset */
     dev->useCRC = AD7124_DISABLE_CRC;
@@ -166,7 +166,7 @@ int8_t ad7124_reset(struct ad7124_dev *dev)
     /* Read POR bit to clear */
     flag = ad7124_waitToPowerOn(dev, dev->responseTimeout);
     if (flag)
-        return flag;
+        Error_Handler();
 
     // Recommened 4ms delay
     HAL_Delay(4);
@@ -188,7 +188,7 @@ int8_t ad7124_waitForSpiReady(struct ad7124_dev *dev, uint32_t timeout)
         // read the value of the error registers
         flag = ad7124_readRegister(dev, &regs[AD7124_Error]);
         if (flag)
-            return flag;
+            Error_Handler();
 
         ready = (regs[AD7124_Error].value & AD7124_ERR_REG_SPI_IGNORE_ERR) == 0;
     }
@@ -213,7 +213,7 @@ int8_t ad7124_waitToPowerOn(struct ad7124_dev *dev, uint32_t timeout)
         flag = ad7124_readRegister(dev, &regs[AD7124_Status]);
 
         if (flag)
-            return flag;
+            Error_Handler();
 
         // Check the POR_FLAG bit in the flag Register
         powered_on = (regs[AD7124_Status].value & AD7124_STATUS_REG_POR_FLAG) == 0;
@@ -237,7 +237,7 @@ int8_t ad7124_WaitForConvReady(struct ad7124_dev *dev, uint32_t timeout)
         // Read d the value of the flag register
         flag = ad7124_readRegister(dev, &regs[AD7124_Status]);
         if (flag)
-            return flag;
+            Error_Handler();
         // Check the RDY bit in the flag register
         ready = (regs[AD7124_Status].value & AD7124_STATUS_REG_RDY == 0);
     }
@@ -272,7 +272,7 @@ int8_t ad7124_getReadChanId(struct ad7124_dev *dev, uint32_t *status)
 
     flag = ad7124_readRegister2(dev, AD7124_STATUS_REG, &reg_temp);
     if (flag)
-        return flag;
+        Error_Handler();
 
     *status = reg_temp & AD7124_STATUS_REG_CH_ACTIVE(0xF);
 
@@ -353,7 +353,7 @@ int8_t ad7124_fclkGet(struct ad7124_dev *dev, float *f_clk)
 
     flag = ad7124_readRegister2(dev, AD7124_ADC_Control, &reg_temp);
     if (flag)
-        return flag;
+        Error_Handler();
 
     switch (dev->power_mode)
     {
@@ -368,7 +368,7 @@ int8_t ad7124_fclkGet(struct ad7124_dev *dev, float *f_clk)
         *f_clk = f_clk_fp;
         break;
     default:
-        return flag;
+        Error_Handler();
     }
 
     return 0;
@@ -383,13 +383,13 @@ int8_t ad7124_fltCoeffGet(struct ad7124_dev *dev, int16_t chn_num, uint16_t *flt
 
     flag = ad7124_readRegister2(dev, AD7124_ADC_Control, &reg_temp);
     if (flag)
-        return flag;
+        Error_Handler();
 
     power_mode = dev->power_mode;
 
     flag = ad7124_readRegister2(dev, (AD7124_Filter_0 + chn_num), &reg_temp);
     if (flag)
-        return flag;
+        Error_Handler();
 
     *flt_coff = 32;
     if (reg_temp & AD7124_FILT_REG_SINGLE_CYCLE)
@@ -431,13 +431,13 @@ float ad7124_getOdr(struct ad7124_dev *dev, int16_t chn_num)
 
     flag = ad7124_fclkGet(dev, &f_clk);
     if (flag)
-        return flag;
+        Error_Handler();
 
     flag = ad7124_readRegister2(dev,
                                 (AD7124_Filter_0 + chn_num),
                                 &reg_temp);
     if (flag)
-        return flag;
+        Error_Handler();
 
     fs_value = reg_temp & AD7124_FILT_REG_FS(0x7FF);
 
@@ -461,7 +461,7 @@ float ad7124_getOdr(struct ad7124_dev *dev, int16_t chn_num)
 
     flag = ad7124_fltcoffGet(dev, chn_num, &flt_coff);
     if (flag)
-        return flag;
+        Error_Handler();
 
     return (f_clk / (float)(flt_coff * fs_value));
 }
@@ -476,11 +476,11 @@ int8_t ad7124_setOdr(struct ad7124_dev *dev, float odr, int16_t chn_num)
 
     flag = ad7124_fclkGet(dev, &f_clk);
     if (flag)
-        return flag;
+        Error_Handler();
 
     flag = ad7124_fltcoffGet(dev, chn_num, &flt_coff);
     if (flag)
-        return flag;
+        Error_Handler();
 
     fs_value = (uint16_t)(f_clk / (flt_coff * odr));
     if (fs_value == 0)
@@ -492,7 +492,7 @@ int8_t ad7124_setOdr(struct ad7124_dev *dev, float odr, int16_t chn_num)
                                 (AD7124_Filter_0 + chn_num),
                                 &reg_temp);
     if (flag)
-        return flag;
+        Error_Handler();
 
     reg_temp &= ~AD7124_FILT_REG_FS(0x7FF);
     reg_temp |= AD7124_FILT_REG_FS(fs_value);
@@ -508,7 +508,7 @@ int8_t ad7124_regWriteMsk(struct ad7124_dev *dev, uint32_t reg_addr, uint32_t da
 
     flag = ad7124_readRegister2(dev, reg_addr, &reg_data);
     if (flag)
-        return flag;
+        Error_Handler();
 
     reg_data &= ~mask;
     reg_data |= data;
@@ -526,7 +526,7 @@ int8_t ad7124_setAdcMode(struct ad7124_dev *device, enum ad7124_mode adc_mode)
 
     flag = ad7124_regWriteMsk(device, 0x01 ,AD7124_ADC_CTRL_REG_MODE(0X0F), AD7124_ADC_CTRL_REG_MODE(adc_mode));
     if (flag)
-        return flag;
+        Error_Handler();
 
     device->mode = adc_mode;
 
@@ -550,7 +550,7 @@ int8_t ad7124_setAdcMode(struct ad7124_dev *device, enum ad7124_mode adc_mode)
 //                              AD7124_CH_MAP_REG_CH_ENABLE,
 //                              AD7124_CH_MAP_REG_CH_ENABLE);
 //    if (flag)
-//        return flag;
+//        Error_Handler();
 //
 //    device->chan_map[chn_num].channel_enable = channel_status;
 //
@@ -570,7 +570,7 @@ int8_t ad7124_connectAnalogInput(struct ad7124_dev *device,
                               AD7124_CH_MAP_REG_AINP(analog_input.ainp),
                               AD7124_CH_MAP_REG_AINP(analog_input.ainp));
     if (flag)
-        return flag;
+        Error_Handler();
 
     /* Select the Negative Analog Input */
     flag = ad7124_regWriteMsk(device,
@@ -578,7 +578,7 @@ int8_t ad7124_connectAnalogInput(struct ad7124_dev *device,
                               AD7124_CH_MAP_REG_AINM(analog_input.ainm),
                               AD7124_CH_MAP_REG_AINM(analog_input.ainm));
     if (flag)
-        return flag;
+        Error_Handler();
 
     device->chan_map[chn_num].ain.ainp =
         analog_input.ainp;
@@ -626,7 +626,7 @@ int8_t ad7124_setPolarity(struct ad7124_dev *device,
                               reg_data,
                               AD7124_CFG_REG_BIPOLAR);
     if (flag)
-        return flag;
+        Error_Handler();
 
     device->setups[setup_id].bi_unipolar = bipolar;
 
@@ -649,7 +649,7 @@ int8_t ad7124_setReferenceSource(struct ad7124_dev *device,
                               AD7124_CFG_REG_REF_SEL(ref_source),
                               AD7124_CFG_REG_REF_SEL(ref_source));
     if (flag)
-        return flag;
+        Error_Handler();
 
     device->setups[setup_id].ref_source = ref_source;
 
@@ -666,7 +666,7 @@ int8_t ad7124_setReferenceSource(struct ad7124_dev *device,
                                   ref_en,
                                   AD7124_ADC_CTRL_REG_REF_EN);
         if (flag)
-            return flag;
+            Error_Handler();
     }
 
     device->ref_en = ref_en;
@@ -696,7 +696,7 @@ int8_t ad7124_enableBuffers(struct ad7124_dev *device,
 							  AD7124_CFG_REG_AIN_BUFP |
 							  AD7124_CFG_REG_AINN_BUFM);
     if (flag)
-        return flag;
+        Error_Handler();
 
     if (refbuf_en)
         /* Enable reference buffer for the chosen set up */
@@ -711,7 +711,7 @@ int8_t ad7124_enableBuffers(struct ad7124_dev *device,
 							  AD7124_CFG_REG_AIN_BUFP |
 							  AD7124_CFG_REG_AINN_BUFM);
     if (flag)
-        return flag;
+        Error_Handler();
 
     device->setups[setup_id].ain_buff = inbuf_en;
     device->setups[setup_id].ref_buff = refbuf_en;
@@ -789,7 +789,7 @@ uint8_t ad7124_currentChannel(struct ad7124_dev *dev){
 	int8_t flag = ad7124_getRegister(dev, AD7124_Status);
 
 	if(flag < 0){
-		return flag;
+		Error_Handler();
 	}
 	return (uint8_t) (flag & AD7124_STATUS_REG_CH_ACTIVE(15));
 }
@@ -805,7 +805,7 @@ uint8_t ad7124_enableChannel(struct ad7124_dev *dev,uint8_t ch, uint8_t enable){
 	r = &dev->regs[ch];
 	flag = ad7124_readRegister(dev, r);
 	if (flag < 0) {
-      return flag;
+      Error_Handler();
     }
 
     if (enable) {
@@ -831,12 +831,12 @@ int8_t ad7124_read(struct ad7124_dev *dev, uint8_t ch){
 		//diable previous channel if different
 		flag = ad7124_enableChannel(dev, cur_ch, 0);
 		if(flag < 0)
-			return flag;
+			Error_Handler();
 	}
 
 	flag = ad7124_startSingleConversion(dev, ch);
 	if(flag < 0){
-		return flag;
+		Error_Handler();
 	}
 
 	flag = waitEndOfConversion();
