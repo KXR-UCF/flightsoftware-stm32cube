@@ -24,13 +24,15 @@
 #include "fmpi2c.h"
 #include "i2c.h"
 #include "quadspi.h"
+#include "sai.h"
 #include "spi.h"
 #include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-//#include "AD7124.h"
+#include <stm32f4xx_hal.h>
+#include "AD7124.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,8 +42,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define MIN_ANGLE 0
-#define MAX_ANGLE 180
+#define MIN_ANGLE 0   // Min Servo Angle
+#define MAX_ANGLE 180 // Max Servo Angle
 
 #define SERVOMIN  544 // This is the 'minimum' pulse length count (out of 4096)
 #define SERVOMAX  2400 // This is the 'maximum' pulse length count (out of 4096)
@@ -65,26 +67,25 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-CAN_TxHeaderTypeDef TxHeader;
-uint32_t TxMailbox;
-uint8_t TxData[4];
+static CAN_TxHeaderTypeDef TxHeader;
+static uint32_t TxMailbox;
+static uint8_t TxData[5];
 
-CAN_RxHeaderTypeDef RxHeader;
-uint8_t RxData[4];
-uint8_t count = 0;
+static CAN_RxHeaderTypeDef RxHeader;
+static uint8_t RxData[4];
+static uint8_t count = 0;
 
-uint8_t enable_data = 0;
 
 void enable_servo(uint8_t servo_id, uint8_t is_enabled){
 	switch(servo_id){
 		case 1:
-			HAL_GPIO_WritePin(SERV_CTL_1_Pin, SERV_CTL_1_GPIO_Port,is_enabled);
+			HAL_GPIO_WritePin((GPIO_TypeDef*) SERV_CTL_1_GPIO_Port,SERV_CTL_1_Pin,is_enabled);
 			break;
 		case 2:
-			HAL_GPIO_WritePin(SERV_CTL_2_Pin, SERV_CTL_2_GPIO_Port,is_enabled);
+			HAL_GPIO_WritePin((GPIO_TypeDef*) SERV_CTL_2_GPIO_Port,SERV_CTL_2_Pin,is_enabled);
 			break;
 		case 3:
-			HAL_GPIO_WritePin(SERV_CTL_3_Pin, SERV_CTL_3_GPIO_Port,is_enabled);
+			HAL_GPIO_WritePin((GPIO_TypeDef*) SERV_CTL_3_GPIO_Port,SERV_CTL_3_Pin,is_enabled);
 			break;
 	}
 }
@@ -106,28 +107,13 @@ void set_servo_angle(int8_t servo_id, uint16_t angle){
 void enable_solinoid(uint8_t solinoid_id,uint8_t is_enabled){
 	switch(solinoid_id){
 		case 0:
-			HAL_GPIO_WritePin(SOL_0_Pin, SOL_0_GPIO_Port,is_enabled);
+			HAL_GPIO_WritePin(SOL_0_GPIO_Port,SOL_0_Pin,is_enabled);
 			break;
 		case 1:
-			HAL_GPIO_WritePin(SOL_1_Pin, SOL_1_GPIO_Port,is_enabled);
+			HAL_GPIO_WritePin(SOL_1_GPIO_Port,SOL_1_Pin,is_enabled);
 			break;
 		case 2:
-			HAL_GPIO_WritePin(SOL_2_Pin, SOL_2_GPIO_Port,is_enabled);
-			break;
-		case 3:
-			HAL_GPIO_WritePin(SOL_3_Pin, SOL_3_GPIO_Port,is_enabled);
-			break;
-		case 4:
-			HAL_GPIO_WritePin(SOL_4_Pin, SOL_4_GPIO_Port,is_enabled);
-			break;
-		case 5:
-			HAL_GPIO_WritePin(SOL_5_Pin, SOL_5_GPIO_Port,is_enabled);
-			break;
-		case 6:
-			HAL_GPIO_WritePin(SOL_6_Pin, SOL_6_GPIO_Port,is_enabled);
-			break;
-		case 7:
-			HAL_GPIO_WritePin(SOL_7_Pin, SOL_7_GPIO_Port,is_enabled);
+			HAL_GPIO_WritePin(SOL_2_GPIO_Port,SOL_2_Pin,is_enabled);
 			break;
 	}
 }
@@ -136,13 +122,13 @@ void enable_solinoid(uint8_t solinoid_id,uint8_t is_enabled){
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan1) {
 	HAL_CAN_GetRxMessage(hcan1, CAN_RX_FIFO0, &RxHeader, RxData);
-	if ((RxHeader.StdId = 0x1DA))
+	if ((RxHeader.StdId = 0x1DA)){
 		count = RxHeader.DLC;
 
-		switch((RxData[0] << 8 )| RxData[1]){
+		switch(RxData[0]){
 			// Set servo angle
 			case 0xAA:
-				packet = RxData[2] << 8 | RxData[3];
+				int16_t packet = RxData[2] << 8 | RxData[3];
 				set_servo_angle(packet & 0b11, packet >> 2);
 				break;
 			// Enable/Disable servo power
@@ -154,16 +140,26 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan1) {
 			case 0xEB:
 				enable_solinoid(RxData[2], RxData[3] != 0);
 				break;
-			// Request Data
+			// Send Data
 			case 0xDA:
-				enable_data = RxData[3] != 0;
+				for(int i = 0; i < 22; i++){
+					TxData[0] = i;
+					TxData[1] = 0xBA;
+					TxData[2] = 0xDA;
+					TxData[3] = 0x55;
+					TxData[4] = 0x69;
+					if ((HAL_CAN_AddTxMessage(hcan1, &TxHeader, TxData, &TxMailbox))!= HAL_OK)
+						return;
+				}
 				break;
 			// PCB^2 Error Signal
 			case 0xDE:
 		}
 
-
+	}
 }
+
+
 /* USER CODE END 0 */
 
 /**
@@ -174,6 +170,9 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+	/* FPU settings ------------------------------------------------------------*/
+
+
 
 
   /* USER CODE END 1 */
@@ -209,31 +208,34 @@ int main(void)
   MX_SPI4_Init();
   MX_TIM3_Init();
   MX_ADC3_Init();
+  MX_SAI2_Init();
   /* USER CODE BEGIN 2 */
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_10, GPIO_PIN_SET);
   HAL_Delay(1000);
 
-  HAL_PWM_Start(&htim4,TIM_CHANNEL_2);
-  HAL_PWM_Start(&htim4,TIM_CHANNEL_3);
-  HAL_PWM_Start(&htim4,TIM_CHANNEL_4);
+  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_3);
+  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_4);
 
 
   HAL_CAN_Start(&hcan1);
   HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING); //activates rx interrupt
 
+  uint32_t pt_adc_buff = 0x12345678;
+  uint32_t ctrl_adc_buff = 0x12345678;
 
   HAL_ADC_Start(&hadc2);
-  HAL_ADCEx_MultiModeStart_DMA(&hadc1, pt_adc_buff, 4);
+  HAL_ADCEx_MultiModeStart_DMA(&hadc1, &pt_adc_buff, 4);
 
   HAL_ADC_Start_IT(&hadc1);
   HAL_ADC_Start_IT(&hadc3);
-  HAL_ADC_Start_DMA(&hadc3, ctrl_adc_buff, 6);
+  HAL_ADC_Start_DMA(&hadc3, &ctrl_adc_buff, 6);
   HAL_TIM_Base_Start(&htim3);
 
   TxHeader.IDE = CAN_ID_STD;
   TxHeader.StdId = 0x2CB;
   TxHeader.RTR = CAN_RTR_DATA;
-  TxHeader.DLC = 4;
+  TxHeader.DLC = 5;
 
   TxData[0] = 0xEF;
   TxData[1] = 0xBE;
@@ -244,111 +246,140 @@ int main(void)
   		Error_Handler();
   	}
 
-//  int8_t flag;
-//
-//  struct ad7124_dev ad7124_device;
-//
-//  struct ad7124_registerData ad7124_init_regs_default[AD7124_REG_NO] = {
-//  	{0x00, 0x00,   1, 2}, /* AD7124_Status */
-//  	/*
-//  	 * 7:6 - 11 : Full power mode
-//  	 * 8 - 1: Internale ref enabled
-//  	 * 1:0 - 00 Internal 614.4 clock
-//  	 */
-//  	{0x01, 0x05C0, 2, 1}, /* AD7124_ADC_Control */
-//  	{0x02, 0x0000, 3, 2}, /* AD7124_Data */
-//  	{0x03, 0x0000, 3, 1}, /* AD7124_IOCon1 */
-//  	{0x04, 0x0000, 2, 1}, /* AD7124_IOCon2 */
-//  	{0x05, 0x02,   1, 2}, /* AD7124_ID */
-//  	{0x06, 0x0000, 3, 2}, /* AD7124_Error */
-//  	{0x07, 0x0000, 3, 1}, /* AD7124_Error_En */
-//  	{0x08, 0x00,   1, 2}, /* AD7124_Mclk_Count */
-//  	{0x09, 0x0001, 2, 1}, /* AD7124_Channel_0 */
-//  	{0x0A, 0x0043, 2, 1}, /* AD7124_Channel_1 */
-//  	{0x0B, 0x0043, 2, 1}, /* AD7124_Channel_2 */
-//  	{0x0C, 0x00C7, 2, 1}, /* AD7124_Channel_3 */
-//  	{0x0D, 0x0085, 2, 1}, /* AD7124_Channel_4 */
-//  	{0x0E, 0x014B, 2, 1}, /* AD7124_Channel_5 */
-//  	{0x0F, 0x00C7, 2, 1}, /* AD7124_Channel_6 */
-//  	{0x10, 0x01CF, 2, 1}, /* AD7124_Channel_7 */
-//  	{0x11, 0x0109, 2, 1}, /* AD7124_Channel_8 */
-//  	{0x12, 0x0031, 2, 1}, /* AD7124_Channel_9 */
-//  	{0x13, 0x014B, 2, 1}, /* AD7124_Channel_10 */
-//  	{0x14, 0x0071, 2, 1}, /* AD7124_Channel_11 */
-//  	{0x15, 0x018D, 2, 1}, /* AD7124_Channel_12 */
-//  	{0x16, 0x00B1, 2, 1}, /* AD7124_Channel_13 */
-//  	{0x17, 0x01CF, 2, 1}, /* AD7124_Channel_14 */
-//  	{0x18, 0x00F1, 2, 1}, /* AD7124_Channel_15 */
-//  	{0x19, 0x0980, 2, 1}, /* AD7124_Config_0 */
-//  	{0x1A, 0x0981, 2, 1}, /* AD7124_Config_1 */
-//  	{0x1B, 0x0982, 2, 1}, /* AD7124_Config_2 */
-//  	{0x1C, 0x0983, 2, 1}, /* AD7124_Config_3 */
-//  	{0x1D, 0x0984, 2, 1}, /* AD7124_Config_4 */
-//  	{0x1E, 0x0985, 2, 1}, /* AD7124_Config_5 */
-//  	{0x1F, 0x0986, 2, 1}, /* AD7124_Config_6 */
-//  	{0x20, 0x0987, 2, 1}, /* AD7124_Config_7 */
-//  	/*
-//  	 * 10:0 - 1 - FS = 1 from filter 0 to 7
-//  	 */
-//  	{0x21, 0x060001, 3, 1}, /* AD7124_Filter_0 */
-//  	{0x22, 0x060001, 3, 1}, /* AD7124_Filter_1 */
-//  	{0x23, 0x060001, 3, 1}, /* AD7124_Filter_2 */
-//  	{0x24, 0x060001, 3, 1}, /* AD7124_Filter_3 */
-//  	{0x25, 0x060001, 3, 1}, /* AD7124_Filter_4 */
-//  	{0x26, 0x060001, 3, 1}, /* AD7124_Filter_5 */
-//  	{0x27, 0x060001, 3, 1}, /* AD7124_Filter_6 */
-//  	{0x28, 0x060001, 3, 1}, /* AD7124_Filter_7 */
-//  	{0x29, 0x800000, 3, 1}, /* AD7124_Offset_0 */
-//  	{0x2A, 0x800000, 3, 1}, /* AD7124_Offset_1 */
-//  	{0x2B, 0x800000, 3, 1}, /* AD7124_Offset_2 */
-//  	{0x2C, 0x800000, 3, 1}, /* AD7124_Offset_3 */
-//  	{0x2D, 0x800000, 3, 1}, /* AD7124_Offset_4 */
-//  	{0x2E, 0x800000, 3, 1}, /* AD7124_Offset_5 */
-//  	{0x2F, 0x800000, 3, 1}, /* AD7124_Offset_6 */
-//  	{0x30, 0x800000, 3, 1}, /* AD7124_Offset_7 */
-//  	{0x31, 0x500000, 3, 1}, /* AD7124_Gain_0 */
-//  	{0x32, 0x500000, 3, 1}, /* AD7124_Gain_1 */
-//  	{0x33, 0x500000, 3, 1}, /* AD7124_Gain_2 */
-//  	{0x34, 0x500000, 3, 1}, /* AD7124_Gain_3 */
-//  	{0x35, 0x500000, 3, 1}, /* AD7124_Gain_4 */
-//  	{0x36, 0x500000, 3, 1}, /* AD7124_Gain_5 */
-//  	{0x37, 0x500000, 3, 1}, /* AD7124_Gain_6 */
-//  	{0x38, 0x500000, 3, 1}, /* AD7124_Gain_7 */
-//  };
-//
+  int8_t flag;
+  uint32_t i;
+
+  int32_t value[8];
+  float voltage[8];
+
+  struct ad7124_dev ad7124_device;
+
+  struct ad7124_registerData ad7124_init_regs_default[AD7124_REG_NO] = {
+  	{0x00, 0x00,   1, 2}, /* AD7124_Status */
+  	/*
+  	 * 7:6 - 11 : Full power mode
+  	 * 8 - 1: Internale ref enabled
+  	 * 1:0 - 00 Internal 614.4 clock
+  	 */
+  	{0x01, 0x05C0, 2, 1}, /* AD7124_ADC_Control */
+  	{0x02, 0x0000, 3, 2}, /* AD7124_Data */
+  	{0x03, 0x0000, 3, 1}, /* AD7124_IOCon1 */
+  	{0x04, 0x0000, 2, 1}, /* AD7124_IOCon2 */
+  	{0x05, 0x02,   1, 2}, /* AD7124_ID */
+  	{0x06, 0x0000, 3, 2}, /* AD7124_Error */
+  	{0x07, 0x0000, 3, 1}, /* AD7124_Error_En */
+  	{0x08, 0x00,   1, 2}, /* AD7124_Mclk_Count */
+  	{0x09, 0x0001, 2, 1}, /* AD7124_Channel_0 */
+  	{0x0A, 0x0043, 2, 1}, /* AD7124_Channel_1 */
+  	{0x0B, 0x0043, 2, 1}, /* AD7124_Channel_2 */
+  	{0x0C, 0x00C7, 2, 1}, /* AD7124_Channel_3 */
+  	{0x0D, 0x0085, 2, 1}, /* AD7124_Channel_4 */
+  	{0x0E, 0x014B, 2, 1}, /* AD7124_Channel_5 */
+  	{0x0F, 0x00C7, 2, 1}, /* AD7124_Channel_6 */
+  	{0x10, 0x01CF, 2, 1}, /* AD7124_Channel_7 */
+  	{0x11, 0x0109, 2, 1}, /* AD7124_Channel_8 */
+  	{0x12, 0x0031, 2, 1}, /* AD7124_Channel_9 */
+  	{0x13, 0x014B, 2, 1}, /* AD7124_Channel_10 */
+  	{0x14, 0x0071, 2, 1}, /* AD7124_Channel_11 */
+  	{0x15, 0x018D, 2, 1}, /* AD7124_Channel_12 */
+  	{0x16, 0x00B1, 2, 1}, /* AD7124_Channel_13 */
+  	{0x17, 0x01CF, 2, 1}, /* AD7124_Channel_14 */
+  	{0x18, 0x00F1, 2, 1}, /* AD7124_Channel_15 */
+  	{0x19, 0x0980, 2, 1}, /* AD7124_Config_0 */
+  	{0x1A, 0x0981, 2, 1}, /* AD7124_Config_1 */
+  	{0x1B, 0x0982, 2, 1}, /* AD7124_Config_2 */
+  	{0x1C, 0x0983, 2, 1}, /* AD7124_Config_3 */
+  	{0x1D, 0x0984, 2, 1}, /* AD7124_Config_4 */
+  	{0x1E, 0x0985, 2, 1}, /* AD7124_Config_5 */
+  	{0x1F, 0x0986, 2, 1}, /* AD7124_Config_6 */
+  	{0x20, 0x0987, 2, 1}, /* AD7124_Config_7 */
+  	/*
+  	 * 10:0 - 1 - FS = 1 from filter 0 to 7
+  	 */
+  	{0x21, 0x060001, 3, 1}, /* AD7124_Filter_0 */
+  	{0x22, 0x060001, 3, 1}, /* AD7124_Filter_1 */
+  	{0x23, 0x060001, 3, 1}, /* AD7124_Filter_2 */
+  	{0x24, 0x060001, 3, 1}, /* AD7124_Filter_3 */
+  	{0x25, 0x060001, 3, 1}, /* AD7124_Filter_4 */
+  	{0x26, 0x060001, 3, 1}, /* AD7124_Filter_5 */
+  	{0x27, 0x060001, 3, 1}, /* AD7124_Filter_6 */
+  	{0x28, 0x060001, 3, 1}, /* AD7124_Filter_7 */
+  	{0x29, 0x800000, 3, 1}, /* AD7124_Offset_0 */
+  	{0x2A, 0x800000, 3, 1}, /* AD7124_Offset_1 */
+  	{0x2B, 0x800000, 3, 1}, /* AD7124_Offset_2 */
+  	{0x2C, 0x800000, 3, 1}, /* AD7124_Offset_3 */
+  	{0x2D, 0x800000, 3, 1}, /* AD7124_Offset_4 */
+  	{0x2E, 0x800000, 3, 1}, /* AD7124_Offset_5 */
+  	{0x2F, 0x800000, 3, 1}, /* AD7124_Offset_6 */
+  	{0x30, 0x800000, 3, 1}, /* AD7124_Offset_7 */
+  	{0x31, 0x500000, 3, 1}, /* AD7124_Gain_0 */
+  	{0x32, 0x500000, 3, 1}, /* AD7124_Gain_1 */
+  	{0x33, 0x500000, 3, 1}, /* AD7124_Gain_2 */
+  	{0x34, 0x500000, 3, 1}, /* AD7124_Gain_3 */
+  	{0x35, 0x500000, 3, 1}, /* AD7124_Gain_4 */
+  	{0x36, 0x500000, 3, 1}, /* AD7124_Gain_5 */
+  	{0x37, 0x500000, 3, 1}, /* AD7124_Gain_6 */
+  	{0x38, 0x500000, 3, 1}, /* AD7124_Gain_7 */
+  };
 
 
-//  flag = ad7124_init(&ad7124_device, &hspi2, GPIOD, GPIO_PIN_10, ID_AD7124_8, &ad7124_init_regs_default);
+
+  flag = ad7124_init(&ad7124_device, &hspi2, GPIOD, GPIO_PIN_10, ID_AD7124_8, &ad7124_init_regs_default);
 
 
 
-//  if (flag < 0)
-//  		return flag;
+  if (flag < 0)
+  		return flag;
 
 
   HAL_Delay(100);
 
-//  ad7124_noCheckReadRegister(&ad7124_device, &ad7124_device.regs[0x06]);
+  ad7124_noCheckReadRegister(&ad7124_device, &ad7124_device.regs[0x06]);
   /* USER CODE END 2 */
 
   /* Infinite loop */
-  while (!enable_data)
-    HAL_Delay(500);
   /* USER CODE BEGIN WHILE */
+
   while (1)
   {
+	value[0] = ad7124_adcRead(&ad7124_device, 1);
+	value[1] = ad7124_adcRead(&ad7124_device, 3);
+	value[2] = ad7124_adcRead(&ad7124_device, 5);
+	value[3] = ad7124_adcRead(&ad7124_device, 7);
+	value[4] = ad7124_adcRead(&ad7124_device, 9);
+	value[5] = ad7124_adcRead(&ad7124_device, 11);
+	value[6] = ad7124_adcRead(&ad7124_device, 13);
+	value[7] = ad7124_adcRead(&ad7124_device, 15);
+	HAL_Delay(50);
+	voltage[0] = ad7124_toVoltage(value[0], 1, 2.5, 1);
+	voltage[1] = ad7124_toVoltage(value[1], 1, 2.5, 1);
+	voltage[2] = ad7124_toVoltage(value[2], 1, 2.5, 1);
+	voltage[3] = ad7124_toVoltage(value[3], 1, 2.5, 1);
+	voltage[4] = ad7124_toVoltage(value[4], 1, 2.5, 1);
+	voltage[5] = ad7124_toVoltage(value[5], 1, 2.5, 1);
+	voltage[6] = ad7124_toVoltage(value[6], 1, 2.5, 1);
+	voltage[7] = ad7124_toVoltage(value[7], 1, 2.5, 1);
+	HAL_Delay(50);
+
+	  for(i = 0; i < 22; i++){
+	  					TxData[0] = i;
+	  					TxData[1] = 0xBA;
+	  					TxData[2] = 0xDA;
+	  					TxData[3] = 0x55;
+	  					TxData[4] = 0x69;
+	  					if ((HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox))!= HAL_OK)
+	  						return 0;
+//	  				}
+	  HAL_Delay(500);
+	HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_3);
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  if ((HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox))
-	  	  				!= HAL_OK) {
-	  	  			Error_Handler();
-	  	  		}
-	  	  		HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_3);
-	  	  		HAL_Delay(10);
-
   }
   /* USER CODE END 3 */
+}
 }
 
 /**
