@@ -72,10 +72,14 @@ target_link_options(
 
 target_sources(
     ${TARGET_NAME} PRIVATE
-    "Core\\Src\\AD7124.c"
     "Core\\Src\\adc.c"
     "Core\\Src\\can.c"
     "Core\\Src\\dma.c"
+    "Core\\Src\\Drivers\\AD7124.c"
+    "Core\\Src\\Drivers\\pressure_transducer.c"
+    "Core\\Src\\Drivers\\servo.c"
+    "Core\\Src\\Drivers\\solinoid.c"
+    "Core\\Src\\Drivers\\thermocouple.c"
     "Core\\Src\\fmpi2c.c"
     "Core\\Src\\gpio.c"
     "Core\\Src\\i2c.c"
