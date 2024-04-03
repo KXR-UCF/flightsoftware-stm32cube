@@ -570,8 +570,6 @@ int8_t ad7124_waitEndOfConversion(struct ad7124_dev *dev);
 float ad7124_toVoltage(int32_t value, int16_t gain, float vref, uint8_t bipolar);
 int8_t ad7124_setMode(struct ad7124_dev *dev, enum ad7124_mode operating_mode);
 int8_t ad7124_init(struct ad7124_dev *device, SPI_HandleTypeDef *hspi,
-		GPIO_TypeDef *ncs_GPIOx, uint16_t ncs_GPIO_pin,
-		enum ad7124_device_type device_type,
-		struct ad7124_registerData *ad7124_init_regs_default);
+		GPIO_TypeDef *ncs_GPIOx, uint16_t ncs_GPIO_pin);
 
 #endif // !AD7124_H_

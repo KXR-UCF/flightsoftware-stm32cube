@@ -27,13 +27,7 @@
 #define SERV_CTL_3_Pin GPIO_PIN_9
 #define SERV_CTL_3_GPIO_Port GPIOD
 
-#define MIN_ANGLE 0   // Min Servo Angle
-#define MAX_ANGLE 180 // Max Servo Angle
 
-#define SERVOMIN  544 // This is the 'minimum' pulse length count (out of 4096)
-#define SERVOMAX  2400 // This is the 'maximum' pulse length count (out of 4096)
-
-#define ANGLE_TO_US(a) ((uint16_t)((((a) - MIN_ANGLE) * (SERVOMAX - SERVOMIN) / (MAX_ANGLE - MIN_ANGLE)) + SERVOMIN))
 
 
 #endif /* INC_DRIVERS_SERVO_H_ */

@@ -5,21 +5,18 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../Core/Src/Drivers/AD7124.c \
 ../Core/Src/Drivers/pressure_transducer.c \
 ../Core/Src/Drivers/servo.c \
 ../Core/Src/Drivers/solinoid.c \
 ../Core/Src/Drivers/thermocouple.c 
 
 OBJS += \
-./Core/Src/Drivers/AD7124.o \
 ./Core/Src/Drivers/pressure_transducer.o \
 ./Core/Src/Drivers/servo.o \
 ./Core/Src/Drivers/solinoid.o \
 ./Core/Src/Drivers/thermocouple.o 
 
 C_DEPS += \
-./Core/Src/Drivers/AD7124.d \
 ./Core/Src/Drivers/pressure_transducer.d \
 ./Core/Src/Drivers/servo.d \
 ./Core/Src/Drivers/solinoid.d \
@@ -33,7 +30,7 @@ Core/Src/Drivers/%.o Core/Src/Drivers/%.su Core/Src/Drivers/%.cyclo: ../Core/Src
 clean: clean-Core-2f-Src-2f-Drivers
 
 clean-Core-2f-Src-2f-Drivers:
-	-$(RM) ./Core/Src/Drivers/AD7124.cyclo ./Core/Src/Drivers/AD7124.d ./Core/Src/Drivers/AD7124.o ./Core/Src/Drivers/AD7124.su ./Core/Src/Drivers/pressure_transducer.cyclo ./Core/Src/Drivers/pressure_transducer.d ./Core/Src/Drivers/pressure_transducer.o ./Core/Src/Drivers/pressure_transducer.su ./Core/Src/Drivers/servo.cyclo ./Core/Src/Drivers/servo.d ./Core/Src/Drivers/servo.o ./Core/Src/Drivers/servo.su ./Core/Src/Drivers/solinoid.cyclo ./Core/Src/Drivers/solinoid.d ./Core/Src/Drivers/solinoid.o ./Core/Src/Drivers/solinoid.su ./Core/Src/Drivers/thermocouple.cyclo ./Core/Src/Drivers/thermocouple.d ./Core/Src/Drivers/thermocouple.o ./Core/Src/Drivers/thermocouple.su
+	-$(RM) ./Core/Src/Drivers/pressure_transducer.cyclo ./Core/Src/Drivers/pressure_transducer.d ./Core/Src/Drivers/pressure_transducer.o ./Core/Src/Drivers/pressure_transducer.su ./Core/Src/Drivers/servo.cyclo ./Core/Src/Drivers/servo.d ./Core/Src/Drivers/servo.o ./Core/Src/Drivers/servo.su ./Core/Src/Drivers/solinoid.cyclo ./Core/Src/Drivers/solinoid.d ./Core/Src/Drivers/solinoid.o ./Core/Src/Drivers/solinoid.su ./Core/Src/Drivers/thermocouple.cyclo ./Core/Src/Drivers/thermocouple.d ./Core/Src/Drivers/thermocouple.o ./Core/Src/Drivers/thermocouple.su
 
 .PHONY: clean-Core-2f-Src-2f-Drivers
 

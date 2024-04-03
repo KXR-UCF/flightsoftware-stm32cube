@@ -1,4 +1,4 @@
-#include <Drivers/AD7124.h>
+#include <AD7124.h>
 #include <stm32f4xx_hal.h>
 
 int8_t ad7124_noCheckReadRegister(struct ad7124_dev *dev,
@@ -476,8 +476,7 @@ int8_t ad7124_setMode(struct ad7124_dev *dev, enum ad7124_mode operating_mode) {
 
 // Initializes the AD7124.
 int8_t ad7124_init(struct ad7124_dev *device, SPI_HandleTypeDef *hspi,
-		GPIO_TypeDef *ncs_GPIOx, uint16_t ncs_GPIO_pin,
-		enum ad7124_device_type device_type) {
+		GPIO_TypeDef *ncs_GPIOx, uint16_t ncs_GPIO_pin) {
 	struct ad7124_registerData ad7124_init_regs_default[AD7124_REG_NO] = { {
 			0x00, 0x00, 1, 2 }, /* AD7124_Status */
 	/*
@@ -559,7 +558,7 @@ int8_t ad7124_init(struct ad7124_dev *device, SPI_HandleTypeDef *hspi,
 	device->hspi = hspi;
 	device->ncs_GPIOx = ncs_GPIOx;
 	device->ncs_GPIO_pin = ncs_GPIO_pin;
-	device->active_device = device_type;
+	device->active_device = AD7124_8_ID;
 
 	// Reset the device
 	flag = ad7124_reset(device);
@@ -578,19 +577,20 @@ int8_t ad7124_init(struct ad7124_dev *device, SPI_HandleTypeDef *hspi,
 			return 1;
 	}
 
+	//	Thermocouple mode
+	flag = ad7124_setAdcControl(device, AD7124_CONTINUOUS, AD7124_HIGH_POWER, 1,
+			0);
 	// Sets up the 8 channels
 	for (i = 0; i < AD7124_MAX_SETUPS; i++) {
-		flag = ad7124_setConfig(device, i, INTERNAL_REF, Pga1, 1, BurnoutOff);
+		flag = ad7124_setConfig(device, i, EXTERNAL_REFIN1, Pga128, 1, BurnoutOff);
 		if (flag)
 			return 1;
 
-		flag = ad7124_setChannel(device, i, i, i, AD7124_AVSS, 0);
+		flag = ad7124_setChannel(device, i, i, 2*i, 2*i+1, 0);
 		if (flag)
 			return 1;
 	}
 
-	flag = ad7124_setAdcControl(device, AD7124_CONTINUOUS, AD7124_HIGH_POWER, 1,
-			0);
 
 	if (flag)
 		return 1;
